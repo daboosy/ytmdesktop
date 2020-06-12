@@ -3,6 +3,7 @@ const settingsProvider = require('../../providers/settingsProvider')
 const __ = require('../../providers/translateProvider')
 const { isLinux } = require('../../utils/systemInfo')
 const fs = require('fs')
+const commandExists = require('command-exists').sync
 
 const elementSettingsCompanionApp = document.getElementById(
     'COMPANION_SERVER_INFO'
@@ -250,6 +251,12 @@ function loadSettings() {
         const startOnBootEl = document.getElementById('settings-start-on-boot')
         startOnBootEl.checked = false
         startOnBootEl.setAttribute('disabled', 'disabled')
+    }
+    if (!commandExists('youtube-dl')) {
+        const el = document.getElementById('settings-ytdl-mp3-container')
+        el.setAttribute('disabled', 'disabled')
+        el.style.opacity = 0.4
+        el.onclick = (ev) => ev.preventDefault()
     }
 }
 
