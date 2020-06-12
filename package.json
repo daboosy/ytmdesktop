@@ -54,7 +54,8 @@
         "register-scheme": "0.0.2",
         "scribble": "0.0.5",
         "socket.io": "^2.3.0",
-        "ws": "^7.3.0"
+        "ws": "^7.3.0",
+        "ytdl-core": "^2.1.7"
     },
     "optionalDependencies": {
         "@nodert-win10/windows.media.playback": "^0.2.96",

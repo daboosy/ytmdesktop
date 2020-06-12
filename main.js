@@ -11,6 +11,7 @@ const {
     nativeTheme,
     screen,
     shell,
+    ipcRenderer,
 } = require('electron')
 const path = require('path')
 const isDev = require('electron-is-dev')
@@ -234,6 +235,9 @@ function createWindow() {
     // Open the DevTools.
     // mainWindow.webContents.openDevTools({ mode: 'detach' });
     // view.webContents.openDevTools({ mode: 'detach' })
+    if (isDev)
+        mainWindow.webContents.openDevTools({ mode: 'detach' }),
+            view.webContents.openDevTools({ mode: 'detach' })
 
     mediaControl.createThumbar(mainWindow, infoPlayerProvider.getAllInfo())
 
@@ -587,7 +591,9 @@ function createWindow() {
                     removeCustomCSSPage()
                 }
                 break
-
+            case 'settings-youtubedl-mp3':
+                setDownloadMP3Visibility(data.value)
+                break
             case 'settings-changed-zoom':
                 view.webContents.zoomFactor = data.value / 100
                 break
@@ -708,9 +714,11 @@ function createWindow() {
             case 'show-guest-mode':
                 windowGuest()
                 break
-
             case 'restore-main-window':
                 mainWindow.show()
+                break
+            case 'execute-youtubedl-mp3':
+                value && downloadMP3(value)
                 break
         }
     })
@@ -1012,6 +1020,75 @@ function createWindow() {
         incognitoWindow.webContents.loadURL(mainWindowParams.url)
     }
 
+    function downloadMP3(videoId) {
+        const ytdl = require('ytdl-core')
+        const basePath = path.resolve(app.getPath('music'), 'youtube-music')
+        if (!ytdl.validateID(videoId)) return
+        if (!existsSync(basePath)) createDir(basePath)
+        setDownloadMP3Status(true)
+        new Promise(async (resolve, reject) => {
+            const videoInfo = await ytdl.getInfo(videoId, {
+                filter: 'audioonly',
+            })
+            const videoName = videoInfo.title.replace('|', '').toString('ascii')
+            const destPath = path.resolve(basePath, videoName + '.mp3')
+            const audioStream = createWriteStream(destPath)
+            const fileStream = ytdl
+                .downloadFromInfo(videoInfo, { filter: 'audioonly' })
+                .pipe(audioStream)
+            fileStream.once('finish', () => {
+                resolve({ file: destPath })
+            })
+            fileStream.once('error', (err) => reject(err))
+        })
+            .then(
+                /** @arg {{file: string}} output */
+                (output) => {
+                    setDownloadMP3Status(false)
+                    console.log('downloadMP3', output)
+                    balloon(
+                        'YTM - Music Download',
+                        `music title has been downloaded at ${output.file}`
+                    )
+                }
+            )
+            .catch((err) => {
+                setDownloadMP3Status(false)
+                console.log('downloadMP3', err)
+            })
+    }
+    function setDownloadMP3Status(enabled) {
+        view.webContents.executeJavaScript(`
+            (function() {
+                const el = document.getElementById('ytmd_youtubedl_mp3');
+                if (!el) {
+                    return;
+                }
+                const isEnabled = ${enabled == true};
+                if (isEnabled) {
+                    el.setAttribute('disabled', 'disabled'), el.style.opacity = 0.4
+                } else {
+                    el.removeAttribute('disabled'), el.style.opacity = 1
+                }
+            })();
+            `)
+    }
+    function setDownloadMP3Visibility(visible = false) {
+        view.webContents.executeJavaScript(`
+            (function() {
+                const el = document.getElementById('ytmd_youtubedl_mp3');
+                if (!el) {
+                    return;
+                }
+                const isEnabled = ${visible == true};
+                if (isEnabled) {
+                    el.style.display = null
+                } else {
+                    el.style.display = 'none'
+                }
+            })();
+            `)
+    }
     ipcMain.on('switch-clipboard-watcher', () => {
         switchClipboardWatcher()
     })
@@ -1360,6 +1437,9 @@ const mediaControl = require('./src/providers/mediaProvider')
 const tray = require('./src/providers/trayProvider')
 const updater = require('./src/providers/updateProvider')
 const analytics = require('./src/providers/analyticsProvider')
+const { fstat, existsSync, createWriteStream } = require('fs')
+const { checkIfExists, createDir } = require('./src/utils/fileSystem')
+const { balloon } = require('./src/providers/trayProvider')
 
 analytics.setEvent('main', 'start', 'v' + app.getVersion(), app.getVersion())
 analytics.setEvent('main', 'os', process.platform, process.platform)

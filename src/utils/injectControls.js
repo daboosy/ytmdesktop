@@ -1,24 +1,28 @@
 const { remote, ipcRenderer } = require('electron')
+const settingsProvider = require('../providers/settingsProvider')
 
 window.ipcRenderer = ipcRenderer
 var content = remote.getCurrentWebContents()
 
-content.addListener('dom-ready', function() {
+content.addListener('dom-ready', function () {
     createContextMenu()
 
     content
         .executeJavaScript('window.location.hostname')
-        .then(hostname => {
+        .then((hostname) => {
             if (hostname == 'music.youtube.com') {
-                createMiddleContent()
-                createRightContent()
-                playerBarScrollToChangeVolume()
-                createPlayerBarContent()
+                createMiddleContent(),
+                    createRightContent(),
+                    playerBarScrollToChangeVolume(),
+                    createPlayerBarContent(),
+                    createYoutubeDLContent(
+                        settingsProvider.get('settings-youtubedl-mp3')
+                    )
             } else {
                 createOffTheRoadContent()
             }
         })
-        .catch(_ => ipcRenderer.send('debug', 'error on inject'))
+        .catch((_) => ipcRenderer.send('debug', 'error on inject'))
 })
 
 function createContextMenu() {
@@ -32,7 +36,7 @@ function createContextMenu() {
         document.body.prepend(materialIcons);
     `
         )
-        .catch(_ => ipcRenderer.send('debug', 'error on createContextMenu'))
+        .catch((_) => ipcRenderer.send('debug', 'error on createContextMenu'))
 
     content
         .insertCSS(
@@ -105,7 +109,7 @@ function createContextMenu() {
         }
     `
         )
-        .catch(_ =>
+        .catch((_) =>
             ipcRenderer.send('debug', 'error on createContextMenu insertCSS')
         )
 
@@ -120,7 +124,7 @@ function createContextMenu() {
         document.body.prepend(menuDiv);
     `
         )
-        .catch(_ =>
+        .catch((_) =>
             ipcRenderer.send('debug', 'error on createContextMenu prepend')
         )
 
@@ -176,7 +180,7 @@ function createContextMenu() {
             menuElement.opacity = "1";
         }`
         )
-        .catch(_ =>
+        .catch((_) =>
             ipcRenderer.send('debug', 'error on createContextMenu listeners')
         )
 }
@@ -199,7 +203,7 @@ function createMiddleContent() {
         center_content.prepend(element);
     `
         )
-        .catch(_ => ipcRenderer.send('debug', 'error on createMiddleContent'))
+        .catch((_) => ipcRenderer.send('debug', 'error on createMiddleContent'))
 }
 
 function createRightContent() {
@@ -235,7 +239,7 @@ function createRightContent() {
             document.getElementById("ytmd_update").classList.remove("hide");
         } );`
         )
-        .catch(_ => ipcRenderer.send('debug', 'error on createRightContent'))
+        .catch((_) => ipcRenderer.send('debug', 'error on createRightContent'))
 }
 
 function createPlayerBarContent() {
@@ -264,8 +268,36 @@ function createPlayerBarContent() {
         playerBarRightControls.append(elementMiniplayer);
     `
         )
-        .catch(_ =>
+        .catch((_) =>
             ipcRenderer.send('debug', 'error on createPlayerBarContent')
+        )
+}
+function createYoutubeDLContent(visible = false) {
+    content
+        .executeJavaScript(
+            `
+        var playerBarRightControls = document.getElementsByClassName('right-controls-buttons style-scope ytmusic-player-bar')[0];
+
+        // MINIPLAYER
+        var elementYTDLMP3 = document.createElement('i');
+        elementYTDLMP3.id = 'ytmd_youtubedl_mp3';
+        elementYTDLMP3.classList.add('material-icons', 'pointer', 'ytmd-icons');
+        elementYTDLMP3.innerText = 'get_app';
+        var isVisible = ${visible == true};
+        elementYTDLMP3.style.display = isVisible ? null : 'none';
+        elementYTDLMP3.addEventListener('click', function(event) {
+            if (event.srcElement.disabled) return;
+            var newUrl = new URL(document.getElementsByClassName('ytp-title-link yt-uix-sessionlink')[0].href);
+            var searchParams = new URLSearchParams(newUrl.search);
+            ipcRenderer.send('window', { command: 'execute-youtubedl-mp3', value: searchParams.get('v') }); } )
+        playerBarRightControls.append(elementYTDLMP3);
+    `
+        )
+        .catch((_) =>
+            ipcRenderer.send(
+                'debug',
+                'error on ' + createYoutubeDLContent.caller.name
+            )
         )
 }
 
@@ -286,7 +318,7 @@ function playerBarScrollToChangeVolume() {
         });
     `
         )
-        .catch(_ =>
+        .catch((_) =>
             ipcRenderer.send('debug', 'error on playerBarScrollToChangeVolume')
         )
 }
@@ -309,7 +341,7 @@ function createOffTheRoadContent() {
         body.prepend(elementBack);
         `
         )
-        .catch(_ =>
+        .catch((_) =>
             ipcRenderer.send('debug', 'error on createOffTheRoadContent')
         )
 }

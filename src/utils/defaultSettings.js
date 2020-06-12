@@ -22,13 +22,12 @@ settingsProvider.setInitialValue('settings-lyrics-provider', '1') // OVH
 
 settingsProvider.setInitialValue('settings-companion-server-protect', true) // Yes
 
+settingsProvider.setInitialValue('settings-youtubedl-mp3', false) // Youtube DL implementation for downloading music
+
 settingsProvider.setInitialValue(
     // Random token
     'settings-companion-server-token',
-    Math.random()
-        .toString(36)
-        .substr(2, 5)
-        .toUpperCase()
+    Math.random().toString(36).substr(2, 5).toUpperCase()
 )
 
 settingsProvider.setInitialValue(
