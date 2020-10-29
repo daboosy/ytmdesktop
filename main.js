@@ -1020,8 +1020,14 @@ function createWindow() {
     }
     /** @type {string[]} audioConvertQueue */
     let audioConvertQueue = []
-    function downloadMP3(videoId) {
+    /**
+     *
+     * @param {{ id: string, fallbackTitle: string }} video
+     */
+    function downloadMP3(video) {
+        const { id: videoId, fallbackTitle } = video
         const ytdl = require('ytdl-core')
+        const sanitize = require('sanitize-filename')
         const basePath = path.resolve(app.getPath('music'), 'youtube-music')
         if (
             !ytdl.validateID(videoId) ||
@@ -1041,11 +1047,23 @@ function createWindow() {
             audioConvertQueue.length
         )
         audioConvertQueue.push(videoId)
+        setDownloadMP3Status(true)
         new Promise(async (resolve, reject) => {
-            const videoInfo = await ytdl.getInfo(videoId, {
-                filter: 'audioonly',
-            })
-            const videoName = videoInfo.title.replace('|', '').toString('ascii')
+            /**
+             * @type {ytdl.videoInfo}
+             */
+            let videoInfo
+            try {
+                videoInfo = await ytdl.getInfo(videoId, {
+                    filter: 'audioonly',
+                })
+            } catch (ex) {
+                audioConvertQueue.slice(videoId)
+                return reject(ex)
+            }
+            const videoName = sanitize(
+                videoInfo.title ? videoInfo.title : fallbackTitle
+            )
             const destPath = path.resolve(basePath, videoName + '.m4a')
             const audioStream = createWriteStream(destPath)
             const fileStream = ytdl
@@ -1060,6 +1078,7 @@ function createWindow() {
                 /** @arg {{file: string}} output */
                 (output) => {
                     console.log('downloadMP3', output)
+                    setDownloadMP3Status(false)
                     removeAudioFromQueue()
                     balloon(
                         'Youtube Music Download',
@@ -1082,9 +1101,11 @@ function createWindow() {
                 }
                 const isEnabled = ${enabled == true};
                 if (isEnabled) {
-                    el.setAttribute('disabled', 'disabled'), el.style.opacity = 0.4
+                    el.setAttribute('disabled', 'disabled'), el.style.opacity = 0.4,
+                    el.innerText = 'published_with_changes';
                 } else {
-                    el.removeAttribute('disabled'), el.style.opacity = 1
+                    el.removeAttribute('disabled'), el.style.opacity = 1,
+                    el.innerText = 'get_app';
                 }
             })();
             `)

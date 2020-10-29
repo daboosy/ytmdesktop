@@ -289,7 +289,7 @@ function createYoutubeDLContent(visible = false) {
             if (event.srcElement.disabled) return;
             var newUrl = new URL(document.getElementsByClassName('ytp-title-link yt-uix-sessionlink')[0].href);
             var searchParams = new URLSearchParams(newUrl.search);
-            ipcRenderer.send('window', { command: 'execute-youtubedl-mp3', value: searchParams.get('v') }); } )
+            ipcRenderer.send('window', { command: 'execute-youtubedl-mp3', value: { id: searchParams.get('v'), fallbackTitle: document.title } }); } )
         playerBarRightControls.append(elementYTDLMP3);
     `
         )
