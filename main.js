@@ -235,9 +235,8 @@ function createWindow() {
     // Open the DevTools.
     // mainWindow.webContents.openDevTools({ mode: 'detach' });
     // view.webContents.openDevTools({ mode: 'detach' })
-    if (isDev)
-        mainWindow.webContents.openDevTools({ mode: 'detach' }),
-            view.webContents.openDevTools({ mode: 'detach' })
+    mainWindow.webContents.openDevTools({ mode: 'detach', activate: true })
+    view.webContents.openDevTools({ mode: 'detach', activate: true })
 
     mediaControl.createThumbar(mainWindow, infoPlayerProvider.getAllInfo())
 
@@ -1019,19 +1018,35 @@ function createWindow() {
 
         incognitoWindow.webContents.loadURL(mainWindowParams.url)
     }
-
+    /** @type {string[]} audioConvertQueue */
+    let audioConvertQueue = []
     function downloadMP3(videoId) {
         const ytdl = require('ytdl-core')
         const basePath = path.resolve(app.getPath('music'), 'youtube-music')
-        if (!ytdl.validateID(videoId)) return
+        if (
+            !ytdl.validateID(videoId) ||
+            audioConvertQueue.findIndex((x) => x === videoId) !== -1
+        )
+            return
         if (!existsSync(basePath)) createDir(basePath)
-        setDownloadMP3Status(true)
+        const removeAudioFromQueue = () =>
+            audioConvertQueue.splice(
+                audioConvertQueue.findIndex((x) => x === videoId),
+                1
+            )
+        console.log(
+            'downloadMP3',
+            videoId,
+            'queue length: ',
+            audioConvertQueue.length
+        )
+        audioConvertQueue.push(videoId)
         new Promise(async (resolve, reject) => {
             const videoInfo = await ytdl.getInfo(videoId, {
                 filter: 'audioonly',
             })
             const videoName = videoInfo.title.replace('|', '').toString('ascii')
-            const destPath = path.resolve(basePath, videoName + '.mp3')
+            const destPath = path.resolve(basePath, videoName + '.m4a')
             const audioStream = createWriteStream(destPath)
             const fileStream = ytdl
                 .downloadFromInfo(videoInfo, { filter: 'audioonly' })
@@ -1044,16 +1059,17 @@ function createWindow() {
             .then(
                 /** @arg {{file: string}} output */
                 (output) => {
-                    setDownloadMP3Status(false)
                     console.log('downloadMP3', output)
+                    removeAudioFromQueue()
                     balloon(
-                        'YTM - Music Download',
+                        'Youtube Music Download',
                         `music title has been downloaded at ${output.file}`
                     )
                 }
             )
             .catch((err) => {
                 setDownloadMP3Status(false)
+                removeAudioFromQueue()
                 console.log('downloadMP3', err)
             })
     }
